@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compteur Fin d'Études</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #000000;
+            --card-bg: rgba(255, 255, 255, 0.80);
+            --text: #1f3237;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            background-color: #fff;
+        }
+
+        .result-card {
+            background-color: #eef2ff;
+            border: 1px solid #c7d2fe;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .result-number {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #particles-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles-canvas"></canvas>
+
+    <div class="container">
+        <h1>🎓 Compteur Fin d'Études</h1>
+
+        <div class="input-group">
+            <label for="grade-select">Quelle est votre classe actuelle ?</label>
+            <select id="grade-select">
+                <option value="" disabled selected>-- Choisir une classe --</option>
+                <!-- Collège -->
+                <option value="11">6ème</option>
+                <option value="10">5ème</option>
+                <option value="9">4ème</option>
+                <option value="8">3ème</option>
+                <!-- Lycée -->
+                <option value="7">2nde</option>
+                <option value="6">1ère</option>
+                <option value="5">Terminale</option>
+                <!-- Supérieur -->
+                <option value="4">Bac +1</option>
+                <option value="3">Bac +2</option>
+                <option value="2">Bac +3</option>
+                <option value="1">Bac +4</option>
+                <option value="0">Bac +5 (Dernière année)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="target-select">À quel niveau souhaitez-vous arrêter ?</label>
+            <select id="target-select">
+                <option value="" disabled selected>-- Choisir un objectif --</option>
+                <!-- Collège -->
+                <option value="11">6ème</option>
+                <option value="10">5ème</option>
+                <option value="9">4ème</option>
+                <option value="8">3ème</option>
+                <!-- Lycée -->
+                <option value="7">2nde</option>
+                <option value="6">1ère</option>
+                <option value="5">Terminale</option>
+                <!-- Supérieur -->
+                <option value="4">Bac +1</option>
+                <option value="3">Bac +2</option>
+                <option value="2">Bac +3</option>
+                <option value="1">Bac +4</option>
+                <option value="0">Bac +5</option>
+            </select>
+        </div>
+
+        <div id="results" class="hidden">
+            <div class="result-card">
+                <span class="result-label">Jours de cours restants cette année (lun-ven)</span>
+                <span id="days-left-year" class="result-number">0</span>
+            </div>
+
+            <div class="result-card">
+                <span class="result-label">Temps total avant la fin des études</span>
+                <span id="total-time-left" class="result-number">0</span>
+                <div id="total-details" style="margin-top: 5px; font-weight: 600;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gradeSelect = document.getElementById('grade-select');
+        const targetSelect = document.getElementById('target-select');
+        const resultsDiv = document.getElementById('results');
+        const daysLeftYearSpan = document.getElementById('days-left-year');
+        const totalTimeLeftSpan = document.getElementById('total-time-left');
+        const totalDetailsDiv = document.getElementById('total-details');
+
+        function getWeekdaysUntilDate(targetDate) {
+            let count = 0;
+            let currentDate = new Date();
+            
+            // On boucle jour par jour jusqu'à la date cible
+            while (currentDate <= targetDate) {
+                const dayOfWeek = currentDate.getDay();
+                // 0 = Dimanche, 6 = Samedi. On ne compte que 1 à 5.
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    count++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            return count;
+        }
+
+        function updateCalculations() {
+            if (!gradeSelect.value || !targetSelect.value) return;
+
+            const currentGrade = parseInt(gradeSelect.value);
+            const targetGrade = parseInt(targetSelect.value);
+            
+            // Calcul de la différence. Si négatif (objectif déjà dépassé), on met 0.
+            const yearsRemaining = Math.max(0, currentGrade - targetGrade);
+            
+            // 1. Calculer la fin de l'année scolaire en cours (fixé au 7 juillet)
+            const now = new Date();
+            let currentYear = now.getFullYear();
+            // Si on est après juillet, la fin de l'année scolaire est l'année suivante
+            if (now.getMonth() > 6) { 
+                currentYear++;
+            }
+            const endOfSchoolYear = new Date(currentYear, 6, 7); // Mois 6 = Juillet (0-indexé)
+
+            // Calcul des jours ouvrés restants pour l'année en cours
+            let daysLeftInCurrentYear = 0;
+            if (now < endOfSchoolYear) {
+                daysLeftInCurrentYear = getWeekdaysUntilDate(endOfSchoolYear);
+            }
+
+            // Affichage jours restants année en cours
+            daysLeftYearSpan.textContent = daysLeftInCurrentYear;
+
+            // 2. Calcul total
+            if (yearsRemaining === 0) {
+                totalTimeLeftSpan.textContent = daysLeftInCurrentYear + " jours";
+                totalDetailsDiv.textContent = "C'est la dernière ligne droite !";
+            } else {
+                totalTimeLeftSpan.textContent = yearsRemaining + " ans";
+                totalDetailsDiv.textContent = `+ ${daysLeftInCurrentYear} jours de l'année en cours`;
+            }
+
+            resultsDiv.classList.remove('hidden');
+        }
+
+        gradeSelect.addEventListener('change', updateCalculations);
+        targetSelect.addEventListener('change', updateCalculations);
+
+        // --- Système de Particules Interactif ---
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray;
+
+        // Position de la souris
+        let mouse = {
+            x: null,
+            y: null,
+            radius: (canvas.height / 80) * (canvas.width / 80)
+        }
+
+        window.addEventListener('mousemove', function(event) {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        // Redimensionnement
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            mouse.radius = (canvas.height / 80) * (canvas.width / 80);
+            initParticles();
+        });
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+
+                // Interaction souris (répulsion)
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                if (distance < mouse.radius + this.size) {
+                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) this.x += 3;
+                    if (mouse.x > this.x && this.x > this.size * 10) this.x -= 3;
+                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) this.y += 3;
+                    if (mouse.y > this.y && this.y > this.size * 10) this.y -= 3;
+                }
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            let numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 3) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 2) - 1;
+                let directionY = (Math.random() * 2) - 1;
+                let color = '#ffffff';
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        function animateParticles() {
+            requestAnimationFrame(animateParticles);
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+        }
+
+        initParticles();
+        animateParticles();
+    </script>
+</body>
+</html>
